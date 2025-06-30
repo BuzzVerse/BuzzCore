@@ -9,6 +9,8 @@ group = 'dev.buzzverse'
 version = '0.0.1-SNAPSHOT'
 
 def protobufVersion = '4.29.3'
+def chirpStackProtoRef = '4.11.1'
+def protoDir = file("$buildDir/chirpstack-proto")
 
 java {
     toolchain {
@@ -29,6 +31,7 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     //implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation "com.google.protobuf:protobuf-java:$protobufVersion"
@@ -37,10 +40,20 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.3'
     implementation 'com.influxdb:influxdb-client-java:7.2.0'
 
+    implementation platform('io.grpc:grpc-bom:1.73.0')
+    implementation 'io.grpc:grpc-stub'
+    implementation 'io.grpc:grpc-protobuf'
+    implementation 'io.grpc:grpc-netty-shaded'
+
     compileOnly 'org.projectlombok:lombok'
+    compileOnly 'javax.annotation:javax.annotation-api:1.3.2'
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
     runtimeOnly 'org.postgresql:postgresql'
     annotationProcessor 'org.projectlombok:lombok'
+
+    implementation 'org.mapstruct:mapstruct:1.6.3'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
@@ -51,15 +64,47 @@ protobuf {
     protoc {
         artifact = "com.google.protobuf:protoc:$protobufVersion"
     }
+    plugins {
+        grpc { artifact = 'io.grpc:protoc-gen-grpc-java:1.73.0' }
+    }
     generateProtoTasks {
-        all().each { task ->
-            task.builtins {
-                java {}
-            }
-        }
+        all()*.plugins { grpc {} }
     }
 }
 
-tasks.named('test') {
-    useJUnitPlatform()
+tasks.register('fetchChirpstackProtos') {
+    description = "Download ChirpStack proto files @$chirpStackProtoRef"
+    outputs.dir protoDir
+
+    doLast {
+        delete protoDir
+        protoDir.mkdirs()
+
+        def url = "https://github.com/chirpstack/chirpstack/archive/v${chirpStackProtoRef}.tar.gz".toURL()
+        def tmp = File.createTempFile('chirpstack', '.tar.gz')
+        url.withInputStream { ins -> tmp.withOutputStream { out -> out << ins } }
+
+        exec {
+            workingDir protoDir
+            commandLine 'tar', '--strip-components=3', '-xzf', tmp.absolutePath,
+                    "chirpstack-${chirpStackProtoRef}/api/proto"
+        }
+        tmp.delete()
+    }
+}
+
+tasks.named('generateProto') {
+    dependsOn 'fetchChirpstackProtos'
+}
+
+tasks.named('processResources') {
+    dependsOn tasks.named('fetchChirpstackProtos')
+}
+
+sourceSets {
+    main {
+        proto {
+            srcDir protoDir
+        }
+    }
 }
