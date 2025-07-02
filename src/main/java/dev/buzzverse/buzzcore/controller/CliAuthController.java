@@ -1,21 +1,16 @@
 package dev.buzzverse.buzzcore.controller;
 
+import dev.buzzverse.buzzcore.model.dto.DeviceGrantResponse;
+import dev.buzzverse.buzzcore.model.dto.TokenResponse;
 import dev.buzzverse.buzzcore.model.github.DeviceGrant;
 import dev.buzzverse.buzzcore.service.DeviceGrantStore;
+import dev.buzzverse.buzzcore.service.JwtService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.JwsHeader;
-import org.springframework.security.oauth2.jwt.JwtClaimsSet;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/cli/auth")
@@ -23,53 +18,30 @@ import java.util.Map;
 public class CliAuthController {
 
     private final DeviceGrantStore store;
-    private final JwtEncoder jwtEncoder;
+    private final JwtService jwtService;
 
     @PostMapping("/request")
-    public Map<String,Object> request() {
-        DeviceGrant g = store.create();
-        return Map.of(
-                "device_code",      g.deviceCode(),
-                "user_code",        g.userCode(),
-                "verification_uri", "/cli/verify"
-        );
+    public DeviceGrantResponse request() {
+        DeviceGrant grant = store.create();
+        return new DeviceGrantResponse(grant.deviceCode(), grant.userCode(), "/cli/verify");
     }
 
     @GetMapping("/poll")
-    public ResponseEntity<?> poll(@RequestParam String deviceCode) {
-        DeviceGrant g = store.byDevice(deviceCode).orElse(null);
+    public TokenResponse poll(@RequestParam String deviceCode) {
+        DeviceGrant grant = store.byDevice(deviceCode)
+                .filter(d -> !d.expiresAt().isBefore(Instant.now()))
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.GONE, "expired_device_code"));
 
-        if (g == null || g.expiresAt().isBefore(Instant.now())) {
-            return ResponseEntity.status(410).body(Map.of("error","expired_device_code"));
+        if (grant.authentication() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.PRECONDITION_REQUIRED, "authorization_pending");
         }
 
-        if (g.authentication() == null) {
-            return ResponseEntity.status(428).body(Map.of("error","authorization_pending"));
-        }
-
-        Authentication auth = g.authentication();
-        List<String> roles = auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .toList();
-
-        Instant now = Instant.now();
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer("buzzcore-cli")
-                .issuedAt(now)
-                .expiresAt(now.plusSeconds(900))
-                .subject(auth.getName())
-                .claim("roles", roles)
-                .build();
-
-        JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
-        String token = jwtEncoder
-                .encode(JwtEncoderParameters.from(header, claims))
-                .getTokenValue();
-
-        return ResponseEntity.ok(Map.of(
-                "access_token", token,
-                "expires_in", 900
-        ));
+        return new TokenResponse(
+                jwtService.generateToken(grant.authentication()),
+                jwtService.getTtlSeconds()
+        );
     }
 
 }
