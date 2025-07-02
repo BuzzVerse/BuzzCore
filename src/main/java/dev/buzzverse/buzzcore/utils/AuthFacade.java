@@ -1,6 +1,6 @@
 package dev.buzzverse.buzzcore.utils;
 
-import dev.buzzverse.buzzcore.security.CurrentUser;
+import dev.buzzverse.buzzcore.model.dto.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;

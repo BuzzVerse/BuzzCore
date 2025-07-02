@@ -1,6 +1,6 @@
 package dev.buzzverse.buzzcore.controller;
 
-import dev.buzzverse.buzzcore.security.CurrentUser;
+import dev.buzzverse.buzzcore.model.dto.CurrentUser;
 import dev.buzzverse.buzzcore.utils.CurrentUserPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;

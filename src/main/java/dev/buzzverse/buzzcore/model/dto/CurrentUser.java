@@ -1,4 +1,4 @@
-package dev.buzzverse.buzzcore.security;
+package dev.buzzverse.buzzcore.model.dto;
 
 import java.util.Collection;
 
