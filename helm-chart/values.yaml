@@ -1,0 +1,125 @@
+namespace: buzzcore
+
+replicaCount: 1
+
+image:
+  repository: bykowskiolaf/buzzcore
+  tag: latest
+  pullPolicy: Always
+
+service:
+  name: backend
+  port: 8080
+
+ingress:
+  enabled: true
+  className: traefik
+  hostname: buzzcore.bykowski.dev
+  tls:
+    enabled: true
+    secretName: buzzcore-bykowski-dev-tls
+    clusterIssuer: cloudflare-cluster-issuer
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector:
+  "kubernetes.io/hostname": "armvm"
+
+tolerations: []
+
+affinity: {}
+
+influxdb:
+  url: http://buzzcore-influxdb2.buzzcore.svc.cluster.local:80
+  org: "BuzzVerse"
+  bucket: "BuzzNode"
+
+jwt:
+  issuer: "buzzcore-cli"
+  ttl: "30d"
+  alg: "HS256"
+
+oauth:
+  github:
+    scope: user:email,read:org
+
+chirpstack:
+    grpcServer: "chirpstack.buzzverse.dev"
+    applicationId: "ee1a09fc-fd99-401b-833a-76f0c2141f06"
+    tenantId: "52f14cd4-c6f1-4fbd-8f87-4025e1d49242"
+
+influxdb2:
+  image:
+    repository: influxdb
+    tag: 2.7.4-alpine
+    pullPolicy: IfNotPresent
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  livenessProbe:
+    path: "/health"
+    scheme: "HTTP"
+    initialDelaySeconds: 0
+    periodSeconds: 10
+    timeoutSeconds: 1
+    failureThreshold: 3
+
+  readinessProbe:
+    path: "/health"
+    scheme: "HTTP"
+    initialDelaySeconds: 0
+    periodSeconds: 10
+    timeoutSeconds: 1
+    successThreshold: 1
+    failureThreshold: 3
+
+  startupProbe:
+    enabled: false
+    path: "/health"
+    scheme: "HTTP"
+    initialDelaySeconds: 30
+    periodSeconds: 5
+    timeoutSeconds: 1
+    failureThreshold: 6
+
+  adminUser:
+    organization: "BuzzVerse"
+    bucket: "BuzzNode"
+    user: "admin"
+    retention_policy: "0s"
+    existingSecret: buzzcore-influx-secrets
+
+  persistence:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    mountPath: /var/lib/influxdb2
+    subPath: ""
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8086
+    portName: http
+
+  serviceAccount:
+    create: true
+
+  ingress:
+    enabled: false
+
+  pdb:
+    create: true
+    minAvailable: 1

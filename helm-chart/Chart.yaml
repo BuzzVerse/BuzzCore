@@ -1,0 +1,10 @@
+apiVersion: v2
+name: buzzcore
+description: A Helm chart for deploying the Buzzcore backend with secrets, service, and ingress.
+type: application
+version: 0.1.0
+appVersion: "0.0.0"
+dependencies:
+  - name: influxdb2
+    repository: https://helm.influxdata.com/
+    version: 2.1.2

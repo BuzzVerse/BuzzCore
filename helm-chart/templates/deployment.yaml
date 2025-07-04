@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "buzzcore.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "buzzcore.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "buzzcore.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "buzzcore.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ include "buzzcore.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - secretRef:
+                name: buzzcore-chirpstack-secrets
+            - secretRef:
+                name: buzzcore-mqtt-secrets
+            - secretRef:
+                name: buzzcore-oauth-secrets
+            - configMapRef:
+                name: {{ include "buzzcore.fullname" . }}-config
+          env:
+            - name: INFLUX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: buzzcore-influx-secrets
+                  key: admin-token
+
+          ports:
+            - name: backend
+              containerPort: {{ .Values.service.port }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: backend
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: backend
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: backend
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 15
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

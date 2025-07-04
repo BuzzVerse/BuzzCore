@@ -51,6 +51,7 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/measurements/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/events/**").hasRole("API")
                         .requestMatchers("/devices/**").hasRole("SOFTWARE")
+                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/readiness", "/actuator/health/liveness").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
