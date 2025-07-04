@@ -4,6 +4,13 @@ metadata:
   name: {{ include "buzzcore.fullname" . }}-config
   namespace: {{ .Values.namespace }}
 data:
-  INFLUX_URL: {{ .Values.influxdb.url }}
-  INFLUX_ORG: {{ .Values.influxdb.org }}
-  INFLUX_BUCKET: {{ .Values.influxdb.bucket }}
+  INFLUX_URL: {{ .Values.influxdb.url | quote }}
+  INFLUX_ORG: {{ .Values.influxdb.org | quote }}
+  INFLUX_BUCKET: {{ .Values.influxdb.bucket | quote }}
+  JWT_ISSUER: {{ .Values.jwt.issuer | quote }}
+  JWT_TTL: {{ .Values.jwt.ttl | quote }}
+  JWT_ALG: {{ .Values.jwt.alg | quote }}
+  OAUTH_GITHUB_SCOPE: {{ .Values.oauth.github.scope | quote }}
+  CHIRPSTACK_APPLICATION_ID: {{ .Values.chirpstack.applicationId | quote }}
+  CHIRPSTACK_TENANT_ID: {{ .Values.chirpstack.tenantId | quote }}
+  CHIRPSTACK_GRPC_SERVER: {{ .Values.chirpstack.grpcServer | quote }}

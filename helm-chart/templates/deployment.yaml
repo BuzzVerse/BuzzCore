@@ -24,6 +24,8 @@ spec:
                 name: buzzcore-chirpstack-secrets
             - secretRef:
                 name: buzzcore-mqtt-secrets
+            - secretRef:
+                name: buzzcore-oauth-secrets
             - configMapRef:
                 name: {{ include "buzzcore.fullname" . }}-config
           env:

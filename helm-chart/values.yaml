@@ -40,6 +40,20 @@ influxdb:
   org: "BuzzVerse"
   bucket: "BuzzNode"
 
+jwt:
+  issuer: "buzzcore-cli"
+  ttl: "30d"
+  alg: "HS256"
+
+oauth:
+  github:
+    scope: user:email,read:org
+
+chirpstack:
+    grpcServer: "chirpstack.buzzverse.dev"
+    applicationId: "ee1a09fc-fd99-401b-833a-76f0c2141f06"
+    tenantId: "52f14cd4-c6f1-4fbd-8f87-4025e1d49242"
+
 influxdb2:
   image:
     repository: influxdb
