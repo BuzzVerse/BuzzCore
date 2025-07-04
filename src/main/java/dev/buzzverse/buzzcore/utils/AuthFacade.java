@@ -2,10 +2,10 @@ package dev.buzzverse.buzzcore.utils;
 
 import dev.buzzverse.buzzcore.model.dto.CurrentUser;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Component
@@ -28,58 +27,39 @@ public class AuthFacade {
 
     public Optional<CurrentUser> currentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
         if (auth == null || !auth.isAuthenticated()) {
             return Optional.empty();
         }
 
-        if (auth instanceof JwtAuthenticationToken jwtAuth) {
-            return Optional.of(fromJwt(jwtAuth));
-        }
-
-        if (auth instanceof OAuth2AuthenticationToken oauth) {
-            return Optional.of(fromOAuth2(oauth));
-        }
-
-        if (auth.getPrincipal() instanceof UserDetails userDetails) {
-            return Optional.of(fromUserDetails(userDetails, auth));
-        }
-
-        return Optional.of(fromGeneric(auth));
+        return Optional.of(switch (auth) {
+            case JwtAuthenticationToken jwtAuth -> fromJwt(jwtAuth);
+            case OAuth2AuthenticationToken oauth -> fromOAuth2(oauth);
+            default -> fromGeneric(auth);
+        });
     }
-
 
     private CurrentUser fromJwt(JwtAuthenticationToken jwtAuth) {
         Jwt jwt = jwtAuth.getToken();
-        Map<String, Object> claims = jwt.getClaims();
-
         return new CurrentUser(
-                (String) claims.getOrDefault("preferred_username", jwt.getSubject()),
-                (String) claims.get("email"),
-                "jwt",
-                extractRoles(jwtAuth.getAuthorities())
+                StringUtils.firstNonBlank(jwt.getClaimAsString("login"), jwt.getSubject()),
+                jwt.getClaimAsString("email"),
+                jwt.getClaimAsString("provider"),
+                safeRoles(jwtAuth.getAuthorities())
         );
     }
 
     private CurrentUser fromOAuth2(OAuth2AuthenticationToken oauth) {
         OAuth2User user = oauth.getPrincipal();
 
-        return new CurrentUser(
-                user.getAttribute("login") != null
-                        ? user.getAttribute("login")
-                        : user.getAttribute("name"),
-                user.getAttribute("email"),
-                oauth.getAuthorizedClientRegistrationId(),
-                extractRoles(oauth.getAuthorities())
-        );
-    }
+        String login = user.getAttribute("login");
+        String name = user.getAttribute("name");
+        String email = user.getAttribute("email");
 
-    private CurrentUser fromUserDetails(UserDetails user, Authentication auth) {
         return new CurrentUser(
-                user.getUsername(),
-                user.getUsername(),
-                "local",
-                extractRoles(auth.getAuthorities())
+                StringUtils.firstNonBlank(login, name, oauth.getName()),
+                email,
+                oauth.getAuthorizedClientRegistrationId(),
+                safeRoles(oauth.getAuthorities())
         );
     }
 
@@ -88,14 +68,14 @@ public class AuthFacade {
                 auth.getName(),
                 auth.getName(),
                 "generic",
-                extractRoles(auth.getAuthorities())
+                safeRoles(auth.getAuthorities())
         );
     }
 
-    private List<String> extractRoles(Collection<? extends GrantedAuthority> authorities) {
-        return authorities.stream()
+    private static List<String> safeRoles(Collection<? extends GrantedAuthority> auths) {
+        return List.copyOf(auths == null ? List.of() : auths.stream()
                 .map(GrantedAuthority::getAuthority)
-                .toList();
+                .toList());
     }
 
 }
