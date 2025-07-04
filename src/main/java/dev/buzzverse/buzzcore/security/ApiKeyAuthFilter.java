@@ -4,40 +4,52 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
-@AllArgsConstructor
+@Component
+@Slf4j
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
-    private final String apiKey;
+    @Value("${api.key.header-name:X-API-KEY}")
+    private String headerName;
+
+    @Value("${chirpstack.events.api_key}")
+    private String expectedKey;
 
     @Override
-    protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain
-    ) throws ServletException, IOException {
-        String path = request.getRequestURI();
-
-        if (!path.startsWith("/events")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String headerValue = request.getHeader("X-API-KEY");
-        if (headerValue == null || !headerValue.equals(apiKey)) {
-            response.sendError(HttpStatus.UNAUTHORIZED.value(), "Invalid or missing API Key");
-            return;
-        }
-
-        ApiKeyAuthenticationToken token = new ApiKeyAuthenticationToken(headerValue, true);
-
-        SecurityContextHolder.getContext().setAuthentication(token);
-        filterChain.doFilter(request, response);
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return request.getHeader(headerName) == null;
     }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
+            throws ServletException, IOException {
+
+        String token = req.getHeader(headerName);
+        if (!expectedKey.equals(token)) {
+            log.warn("Invalid API key on {} {}", req.getMethod(), req.getRequestURI());
+            res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
+            return;
+        }
+
+        Authentication auth = new PreAuthenticatedAuthenticationToken(
+                "api-client",
+                token,
+                List.of(new SimpleGrantedAuthority("ROLE_API"))
+        );
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        chain.doFilter(req, res);
+    }
+
 }
