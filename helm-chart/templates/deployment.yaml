@@ -41,6 +41,26 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
 
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: backend
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: backend
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: backend
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 15
+
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
