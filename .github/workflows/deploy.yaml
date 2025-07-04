@@ -5,7 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
-
+    inputs:
+      branch:
+        description: 'The branch to build and deploy'
+        required: true
+        default: 'main'
 env:
   # Using GitHub Container Registry (ghcr.io)
   REGISTRY: ghcr.io
@@ -26,6 +30,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - name: Set up QEMU for multi-platform builds
         uses: docker/setup-qemu-action@v3
