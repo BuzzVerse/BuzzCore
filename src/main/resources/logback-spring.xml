@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration scan="true">
+<configuration scan="true" scanPeriod="30 seconds">
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
     <turboFilter class="ch.qos.logback.classic.turbo.DuplicateMessageFilter">
@@ -18,7 +18,8 @@
 
     <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
         <queueSize>2048</queueSize>
-        <discardingThreshold>0</discardingThreshold>
+        <discardingThreshold>50</discardingThreshold>
+        <thresholdLevel>WARN</thresholdLevel>
         <appender-ref ref="CONSOLE"/>
     </appender>
 
