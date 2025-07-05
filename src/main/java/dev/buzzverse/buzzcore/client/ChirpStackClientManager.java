@@ -24,6 +24,7 @@ public class ChirpStackClientManager {
 
     public ChirpStackClientManager(ChirpStackProperties props) {
         this.props = props;
+        log.info("Initializing ChirpStack gRPC client. Connecting to server @ {}", props.getGrpc().getServer());
         this.channel = NettyChannelBuilder.forTarget(props.getGrpc().getServer())
                 .useTransportSecurity()
                 .keepAliveTime(30, TimeUnit.SECONDS)
